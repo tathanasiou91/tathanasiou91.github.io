@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Hemisphere vs Lambertian Directional Lighting</title>
+
+    <!-- This in-line script is a vertex shader resource
+         Shaders can be linked from an external file as well. -->
+    <script id="vertex-shader" type="x-shader/x-vertex">
+//hemisphere lighting shader with optional diffuse lighting path
+
+//inputs
+attribute vec4 vPosition;
+attribute vec3 vNormal;
+
+//outputs
+varying vec4 color;
+
+//structs
+struct global_ambient
+{
+    vec4 direction;  // direction of top colour
+    vec4 top;        // top colour
+    vec4 bottom;     // bottom colour
+};
+
+
+struct _material
+{
+    vec4 diffuse;   
+};
+
+//uniforms
+uniform mat4 p;     // perspective matrix
+uniform mat4 mv;    // modelview matrix
+
+
+uniform _material material; // material properties
+uniform global_ambient global;	// global ambient uniform
+
+
+//globals
+vec4 mvPosition; // unprojected vertex position
+vec3 N; // fixed surface normal
+
+void main() 
+{
+  //Transform the point
+  mvPosition = mv*vPosition;  //mvPosition is used often
+  gl_Position = p*mvPosition; 
+
+  //Make sure the normal is actually unit length, 
+  //and isolate the important coordinates
+  N = normalize((mv*vec4(vNormal,0.0)).xyz);
+    
+  //Make sure global ambient direction is unit length
+  vec3 L = normalize(global.direction.xyz);
+  
+  //Calculate cosine of angle between global ambient direction and normal
+  float cosTheta = dot(L,N);
+
+  //Calculate global ambient colour
+  float a = 0.5+(0.5*cosTheta);
+  color = a * global.top * material.diffuse
+  	      + (1.0-a)* global.bottom * material.diffuse;
+  color.a = 1.0; //Override alpha from light calculations - only needs to be done once
+
+}
+    </script>
+
+    <!-- This in-line script is a fragment shader resource.
+         Shaders can be linked from an external file as well. -->
+    <script id="fragment-shader" type="x-shader/x-fragment">
+    	precision mediump float;
+    	varying vec4 color;
+    	void main() 
+    	{ 
+            gl_FragColor = color;
+    	}
+    </script>
+
+    <!-- These are external javascript files. 
+         The first three are the textbook libraries.
+         The last one is your own javascript code. Make sure to change the name 
+         to match your javascript file. -->
+    <script type="text/javascript" src="../Common/webgl-utils.js"></script>
+    <script type="text/javascript" src="../Common/initShaders.js"></script>
+    <script type="text/javascript" src="../Common/MV.js"></script>
+    <script type="text/javascript" src="../Common/uofrGraphics.js"></script>
+    <script type="text/javascript" src="../Common/j3di.js"></script>
+    <script type="text/javascript" src="../Common/jscolor.js"></script>
+    <script type="text/javascript" src="hemisphere.js"></script>
+</head>
+
+<body bgcolor="#606060" text="#ffffff">
+    <!-- This is the canvas - the only HTML element that can render WebGL 
+         graphics. You can have more than one WebGL canvas on a web page, but
+         that gets tricky. Stick to one per page for now. -->
+    <canvas id="gl-canvas" style="background: url(warehouse.jpg);" width="800" height="560">
+        Oops ... your browser doesn't support the HTML5 canvas element
+    </canvas>
+    <div>Light direction: x<input id="dx" type="text" > y<input id="dy" type="text" > z<input id="dz" type="text" ></div>
+    <button id="topColor" class="jscolor {valueElement:'chosen-value', onFineChange:'setTopColor(this)'}" style="width: 400px; height: 100px;">
+		Top Color
+	</button>
+    <button id="bottomColor" class="jscolor {valueElement:'chosen-value', onFineChange:'setBottomColor(this)'}" style="width: 400px; height: 100px;">
+		Bottom Color
+	</button>
+	<br />
+</body>
+</html>

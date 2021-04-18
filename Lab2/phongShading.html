@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Specular Lighting and Material Properties</title>
+
+    <!-- This in-line script is a vertex shader resource
+         Shaders can be linked from an external file as well. -->
+    <script id="vertex-shader" type="x-shader/x-vertex">
+//diffuse and ambient multi-light shader
+
+//inputs
+attribute vec4 vPosition;
+attribute vec3 vNormal;
+
+
+//outputs
+varying vec4 color;
+varying vec3 normal;
+varying vec4 mvPosition; //unprojected vertex position
+
+
+//constants
+const int n = 1; // number of lights
+
+//uniforms
+uniform mat4 p;     // perspective matrix
+uniform mat4 mv;    // modelview matrix
+
+//globals
+vec3 N; // fixed surface normal
+
+void main() 
+{
+  //Transform the point
+  mvPosition = mv*vPosition;  //mvPosition is interpolated for pixel lighting
+  gl_Position = p*mvPosition; 
+
+  //normal is also interpolated for pixel lighting
+  normal = (mv*vec4(vNormal,0.0)).xyz;
+    
+}
+    </script>
+
+    <!-- This in-line script is a fragment shader resource.
+         Shaders can be linked from an external file as well. -->
+    <script id="fragment-shader" type="x-shader/x-fragment">
+
+precision mediump float;
+varying vec4 color;
+varying vec3 normal; 
+varying vec4 mvPosition;
+
+vec3 N;
+
+
+//structs
+struct _light
+{
+    vec4 diffuse;
+    vec4 specular;
+    vec4 ambient;
+    vec4 position;
+};
+
+struct _material
+{
+    vec4 diffuse;
+    vec4 specular;
+    vec4 ambient;
+    float shininess;
+};
+
+//constants
+const int nLights = 1; // number of lights
+
+//uniforms
+uniform bool lighting;  // to enable and disable lighting
+uniform vec4 uColor;    // colour to use when lighting is disabled
+uniform _light light[nLights]; // properties for the n lights
+uniform _material material; // material properties    	
+  vec4 lightCalc(in _light light);
+  	
+    	
+void main() 
+{ 
+  gl_FragColor = color;
+  if (lighting != false) 
+  {
+    //Make sure the normal is actually unit length, 
+    //and isolate the important coordinates
+    N = normalize(normal);
+    
+    //Combine colors from all lights
+    for (int i = 0; i < nLights; i++)
+    {
+        gl_FragColor += lightCalc(light[i]);
+    }
+    gl_FragColor.a = 1.0; //Override alpha from light calculations
+  }    	
+}
+    	
+vec4 lightCalc(in _light light)
+{
+  //Set up light direction for positional lights
+  vec3 L;
+  
+  //If the light position is a vector, use that as the direction
+  if (light.position.w == 0.0) 
+    L = normalize(light.position.xyz);
+  //Otherwise, the direction is a vector from the current vertex to the light
+  else
+    L = normalize(light.position.xyz - mvPosition.xyz);
+
+  //Set up eye vector
+  vec3 E = -normalize(mvPosition.xyz);
+  vec3 H = normalize(L+E); 
+  float Ks = pow(max(dot(N, H),0.0), material.shininess);
+  
+  //Calculate diffuse coefficient
+  float Kd = max(dot(L,N), 0.0);
+
+  //Calculate colour for this light
+  vec4 color =  Ks * material.specular * light.specular
+  			   + Kd * material.diffuse * light.diffuse
+               + material.ambient * light.ambient;
+               
+  return color;
+}
+    </script>
+
+    <!-- These are external javascript files. 
+         The first three are the textbook libraries.
+         The last one is your own javascript code. Make sure to change the name 
+         to match your javascript file. -->
+    <script type="text/javascript" src="../Common/webgl-utils.js"></script>
+    <script type="text/javascript" src="../Common/initShaders.js"></script>
+    <script type="text/javascript" src="../Common/MVnew.js"></script>
+    <script type="text/javascript" src="../Common/uofrGraphics.js"></script>
+    <script type="text/javascript" src="../Common/j3di.js"></script>
+    <script type="text/javascript" src="../Common/jscolor.js"></script>
+    <script type="text/javascript" src="batSpin.js"></script>
+</head>
+
+<body bgcolor="#606060" text="#ffffff">
+    <!-- This is the canvas - the only HTML element that can render WebGL 
+         graphics. You can have more than one WebGL canvas on a web page, but
+         that gets tricky. Stick to one per page for now. -->
+    <canvas id="gl-canvas" width="800" height="560">
+        Oops ... your browser doesn't support the HTML5 canvas element
+    </canvas>
+    <div>Light rotY: 0<input id="rotY" type="range" min="0" max="360" step="0.1" value="0" style="width: 650px;">360 <span id="directionval">fixme</span></div>
+    <div>Shininess: 1<input id="shininess" type="range" min="1" max="255" step="1" value="50" style="width: 650px;">255 <span id="shininessval">fixme</span></div>
+    <div>Sphere Rez: 5<input id="rez" type="range" min="5" max="100" step="1" value="10" style="width: 650px;">100 <span id="rezval">fixme</span></div>
+    <button id="specularColor" class="jscolor {valueElement:'chosen-value', onFineChange:'setSpecularColor(this)'}" style="width: 400px; height: 100px;">
+		Specular Color
+	</button>
+    <button id="diffuseColor" class="jscolor {valueElement:'chosen-value', onFineChange:'setDiffuseColor(this)'}" style="width: 400px; height: 100px;">
+		Diffuse and Ambient Color
+	</button>
+</body>
+</html>
